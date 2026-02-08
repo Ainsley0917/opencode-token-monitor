@@ -5,6 +5,9 @@ import type { PluginInput } from "@opencode-ai/plugin";
 import type { OpencodeClient } from "@opencode-ai/sdk";
 import type { QuotaStatus } from "../lib/quota";
 import { resetState } from "../lib/notifications";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "fs";
+import { join } from "path";
+import { calculateCost, loadPricingConfig } from "../lib/cost-calculator";
 describe("Token Stats Plugin", () => {
   beforeEach(() => {
     resetState("test-session");
@@ -568,6 +571,7 @@ describe("Token Stats Plugin", () => {
     expect(hooks.tool).toHaveProperty("token_history");
     expect(hooks.tool?.token_history).toHaveProperty("description");
     expect(hooks.tool!.token_history!.description).toContain("history");
+    expect(hooks.tool?.token_history?.args).toHaveProperty("recalculate");
   });
   test("token_history returns formatted history output", async () => {
     const mockClient = {
@@ -658,6 +662,179 @@ describe("Token Stats Plugin", () => {
       }
     );
     expect(result).toContain("**Scope:** project (test-project)");
+  });
+
+  test("token_history recalculates costs when recalculate=true", async () => {
+    const historyDir = join(process.cwd(), "token-history");
+    const shardPath = join(historyDir, "2099-01.json");
+    const timestamp = Date.parse("2099-01-15T12:00:00.000Z");
+    const testRecord = {
+      sessionID: "recalc-history-session",
+      projectID: "test-project",
+      timestamp,
+      totals: {
+        input: 1_000_000,
+        output: 500_000,
+        total: 1_500_000,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      byModel: {
+        "anthropic/claude-sonnet-4": {
+          input: 1_000_000,
+          output: 500_000,
+          total: 1_500_000,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+      },
+      cost: 0,
+    };
+
+    if (!existsSync(historyDir)) {
+      mkdirSync(historyDir, { recursive: true });
+    }
+    writeFileSync(shardPath, JSON.stringify([testRecord], null, 2), "utf-8");
+
+    try {
+      const mockClient = {
+        session: {
+          messages: async () => ({ data: [], error: undefined }),
+        },
+      } as unknown as OpencodeClient;
+      const mockInput: PluginInput = {
+        client: mockClient,
+        project: { id: "test-project", worktree: "/test", time: { created: Date.now() } },
+        directory: "/test",
+        worktree: "/test",
+        serverUrl: new URL("http://localhost"),
+        $: {} as any,
+      };
+      const hooks = await plugin(mockInput);
+      const context = {
+        sessionID: "test-session",
+        messageID: "test-message",
+        agent: "test-agent",
+        directory: "/test",
+        worktree: "/test",
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+      };
+
+      const storedCostResult = await hooks.tool!.token_history!.execute(
+        { from: "2099-01-01", to: "2099-01-31" },
+        context
+      );
+
+      const expectedRecalculatedCost = calculateCost(testRecord.byModel, loadPricingConfig()).totalCost;
+
+      const recalculatedResult = await hooks.tool!.token_history!.execute(
+        { from: "2099-01-01", to: "2099-01-31", recalculate: true },
+        context
+      );
+
+      expect(storedCostResult).toContain("- Total Cost: $0.0000");
+      expect(recalculatedResult).toContain(`- Total Cost: $${expectedRecalculatedCost.toFixed(4)}`);
+      expect(recalculatedResult).toContain(`$${expectedRecalculatedCost.toFixed(4)}`);
+    } finally {
+      if (existsSync(shardPath)) {
+        rmSync(shardPath);
+      }
+      if (existsSync(historyDir)) {
+        rmSync(historyDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test("token_export range recalculates costs when recalculate=true", async () => {
+    const historyDir = join(process.cwd(), "token-history");
+    const shardPath = join(historyDir, "2099-02.json");
+    const timestamp = Date.parse("2099-02-10T12:00:00.000Z");
+    const testRecord = {
+      sessionID: "recalc-export-session",
+      projectID: "test-project",
+      timestamp,
+      totals: {
+        input: 750_000,
+        output: 250_000,
+        total: 1_000_000,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      byModel: {
+        "anthropic/claude-sonnet-4": {
+          input: 750_000,
+          output: 250_000,
+          total: 1_000_000,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+      },
+      cost: 0,
+    };
+
+    if (!existsSync(historyDir)) {
+      mkdirSync(historyDir, { recursive: true });
+    }
+    writeFileSync(shardPath, JSON.stringify([testRecord], null, 2), "utf-8");
+
+    try {
+      const mockClient = {
+        session: {
+          messages: async () => ({ data: [], error: undefined }),
+        },
+      } as unknown as OpencodeClient;
+      const mockInput: PluginInput = {
+        client: mockClient,
+        project: { id: "test-project", worktree: "/test", time: { created: Date.now() } },
+        directory: "/test",
+        worktree: "/test",
+        serverUrl: new URL("http://localhost"),
+        $: {} as any,
+      };
+
+      const hooks = await plugin(mockInput);
+      const context = {
+        sessionID: "test-session",
+        messageID: "test-message",
+        agent: "test-agent",
+        directory: "/test",
+        worktree: "/test",
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+      };
+
+      const withoutRecalculate = await hooks.tool!.token_export!.execute(
+        { format: "json", scope: "range", from: "2099-02-01", to: "2099-02-28" },
+        context
+      );
+      const withRecalculate = await hooks.tool!.token_export!.execute(
+        {
+          format: "json",
+          scope: "range",
+          from: "2099-02-01",
+          to: "2099-02-28",
+          recalculate: true,
+        },
+        context
+      );
+
+      const expectedRecalculatedCost = calculateCost(testRecord.byModel, loadPricingConfig()).totalCost;
+      const withoutData = JSON.parse(withoutRecalculate as string);
+      const withData = JSON.parse(withRecalculate as string);
+
+      expect(withoutData[0].cost).toBe(0);
+      expect(withData[0].cost).toBeCloseTo(expectedRecalculatedCost, 8);
+    } finally {
+      if (existsSync(shardPath)) {
+        rmSync(shardPath);
+      }
+      if (existsSync(historyDir)) {
+        rmSync(historyDir, { recursive: true, force: true });
+      }
+    }
   });
   test("event hook handles session.idle and shows toast", async () => {
     let toastShown = false;
@@ -772,6 +949,7 @@ describe("Token Stats Plugin", () => {
       expect(hooks.tool?.token_export?.args).toHaveProperty("format");
       expect(hooks.tool?.token_export?.args).toHaveProperty("scope");
       expect(hooks.tool?.token_export?.args).toHaveProperty("file_path");
+      expect(hooks.tool?.token_export?.args).toHaveProperty("recalculate");
     });
     test("exports session data as JSON", async () => {
       const mockMessages = [

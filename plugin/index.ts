@@ -29,7 +29,12 @@ import { analyzeTrends } from "../lib/trends";
 import { renderBarChart } from "../lib/ascii-charts";
 import { listSessionTree, aggregateSessionTree, type SessionNode } from "../lib/session-tree";
 import { shouldShowToast, updateState, resetState } from "../lib/notifications";
-import type { AssistantMessage, UserMessage, PriceConfig } from "../lib/types";
+import type {
+  AssistantMessage,
+  UserMessage,
+  PriceConfig,
+  SessionRecord,
+} from "../lib/types";
 import { writeFileSync, mkdirSync } from "fs";
 import { dirname } from "path";
 
@@ -99,6 +104,21 @@ function computeInitiatorCosts(
   return computeCostMapFromAgentModel(statsByInitiatorAgentModel, customPricing);
 }
 
+function maybeRecalculateHistoryCosts(
+  records: SessionRecord[],
+  recalculate?: boolean
+): SessionRecord[] {
+  if (!recalculate) {
+    return records;
+  }
+
+  const customPricing = loadPricingConfig();
+  return records.map((record) => ({
+    ...record,
+    cost: calculateCost(record.byModel, customPricing).totalCost,
+  }));
+}
+
 export default async function (input: PluginInput): Promise<ReturnType<Plugin>> {
   return {
     tool: {
@@ -108,6 +128,10 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
           from: tool.schema.string().optional().describe("Start date (ISO: 2026-01-01)"),
           to: tool.schema.string().optional().describe("End date (ISO: 2026-02-07)"),
           scope: tool.schema.string().optional().describe("Scope: project or all (default: all)"),
+          recalculate: tool.schema
+            .boolean()
+            .optional()
+            .describe("Recalculate historical costs using current pricing"),
         },
         async execute(args, _context) {
           try {
@@ -123,7 +147,8 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
 
             const scope = args.scope ?? "all";
             const projectID = scope === "project" ? input.project?.id : undefined;
-            const records = await loadHistoryForRange(fromDate, toDate, undefined, projectID);
+            const loadedRecords = await loadHistoryForRange(fromDate, toDate, undefined, projectID);
+            const records = maybeRecalculateHistoryCosts(loadedRecords, args.recalculate);
 
             if (records.length === 0) {
               const scopeLabel = scope === "project" ? `project (${input.project?.id ?? "unknown"})` : "all";
@@ -222,6 +247,10 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
             .enum(["project", "all"])
             .optional()
             .describe("History scope: project or all (default: all, range mode only)"),
+          recalculate: tool.schema
+            .boolean()
+            .optional()
+            .describe("Recalculate historical costs using current pricing (range mode only)"),
         },
         async execute(args, context) {
           try {
@@ -279,7 +308,8 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
               const historyScope = args.history_scope ?? "all";
               const projectIDFilter = historyScope === "project" ? input.project?.id : undefined;
               
-              records = await loadHistoryForRange(fromDate, toDate, undefined, projectIDFilter);
+              const loadedRecords = await loadHistoryForRange(fromDate, toDate, undefined, projectIDFilter);
+              records = maybeRecalculateHistoryCosts(loadedRecords, args.recalculate);
 
               if (records.length === 0) {
                 return `No session records found between ${fromDate.toISOString().split('T')[0]} and ${toDate.toISOString().split('T')[0]}.`;

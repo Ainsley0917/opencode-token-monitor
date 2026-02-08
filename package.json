@@ -2,7 +2,7 @@
   "name": "opencode-token-monitor",
   "version": "0.3.0",
   "description": "OpenCode plugin for monitoring token usage and ecosystem analytics",
-  "author": "Antigravity Team",
+  "author": "Ainsley0917",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -22,16 +22,18 @@
   "type": "module",
   "private": false,
   "files": [
-    "dist/",
-    "lib/",
-    "plugin/",
-    "pricing.json",
+    "dist/plugin.js",
+    "dist/plugin/index.d.ts",
+    "dist/lib/",
+    "pricing.example.json",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "LICENSE"
   ],
   "scripts": {
     "test": "bun test",
     "typecheck": "tsc --noEmit",
+    "prepublishOnly": "bun run build",
     "build": "bun build ./plugin/index.ts --outfile=dist/plugin.js --target=bun --external=@opencode-ai/plugin --external=@opencode-ai/sdk && tsc --emitDeclarationOnly --declaration --project tsconfig.json --outDir dist --noEmit false"
   },
   "devDependencies": {

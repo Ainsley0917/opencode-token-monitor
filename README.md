@@ -1,6 +1,7 @@
 # opencode-token-monitor
 
 [![CI](https://github.com/Ainsley0917/opencode-token-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Ainsley0917/opencode-token-monitor/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/opencode-token-monitor.svg)](https://www.npmjs.com/package/opencode-token-monitor)
 
 OpenCode plugin for monitoring token usage, estimating costs, and tracking ecosystem analytics across AI coding sessions.
 
@@ -24,7 +25,19 @@ OpenCode plugin for monitoring token usage, estimating costs, and tracking ecosy
 
 ## Installation
 
-### Manual Installation
+### Via npm (Recommended)
+
+```bash
+npm install -g opencode-token-monitor
+```
+
+Then copy the plugin to your OpenCode plugins directory:
+
+```bash
+cp $(npm root -g)/opencode-token-monitor/dist/plugin.js ~/.opencode/plugins/token-monitor.js
+```
+
+### From Source
 
 1. Clone the repository:
    ```bash

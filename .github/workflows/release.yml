@@ -43,7 +43,44 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
+      - name: Extract Release Notes
+        id: extract_notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Extract section between ## [VERSION] and next ## [
+          # 1. Find the starting line of the version section
+          # 2. Find the next header starting with ## [
+          # 3. Extract everything in between
+          NOTES=$(awk -v ver="$VERSION" '
+            $0 ~ "## \\[" ver "\\]" { capture=1; next }
+            capture && /^## \[/ { capture=0 }
+            capture { buf = buf $0 "\n" }
+            END { sub(/^\n+/, "", buf); sub(/\n+$/, "", buf); print buf }
+          ' CHANGELOG.md)
+          
+          # Prepare the full body
+          {
+            echo "notes<<EOF"
+            echo "### Release $GITHUB_REF_NAME"
+            echo ""
+            echo "$NOTES"
+            echo ""
+            echo "### Install"
+            echo ""
+            echo "Add to your \`opencode.json\`:"
+            echo ""
+            echo "\`\`\`json"
+            echo "{ \"plugin\": [\"opencode-token-monitor@latest\"] }"
+            echo "\`\`\`"
+            echo ""
+            echo "Restart OpenCode and you're done."
+            echo ""
+            echo "### Full Changelog"
+            echo "See [CHANGELOG.md](https://github.com/Ainsley0917/opencode-token-monitor/blob/main/CHANGELOG.md) for complete version history."
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          body: ${{ steps.extract_notes.outputs.notes }}

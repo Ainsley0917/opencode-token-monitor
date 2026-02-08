@@ -125,7 +125,8 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
             const records = await loadHistoryForRange(fromDate, toDate, undefined, projectID);
 
             if (records.length === 0) {
-              return `# Token Usage History\n\nNo session records found between ${fromDate.toISOString().split('T')[0]} and ${toDate.toISOString().split('T')[0]}.`;
+              const scopeLabel = scope === "project" ? `project (${input.project?.id ?? "unknown"})` : "all";
+              return `# Token Usage History\n\n**Scope:** ${scopeLabel}\n\nNo session records found between ${fromDate.toISOString().split('T')[0]} and ${toDate.toISOString().split('T')[0]}.`;
             }
 
             let output = `# Token Usage History\n\n`;

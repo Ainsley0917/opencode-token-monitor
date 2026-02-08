@@ -1,0 +1,117 @@
+[
+  {
+    "info": {
+      "id": "msg_abc123",
+      "sessionID": "ses_xyz789",
+      "role": "assistant",
+      "time": {
+        "created": 1704067200000,
+        "completed": 1704067215000
+      },
+      "parentID": "msg_user456",
+      "modelID": "claude-sonnet-4",
+      "providerID": "anthropic",
+      "mode": "build",
+      "path": {
+        "cwd": "/Users/test/project",
+        "root": "/Users/test/project"
+      },
+      "summary": false,
+      "cost": 0.0024,
+      "tokens": {
+        "input": 1500,
+        "output": 800,
+        "reasoning": 0,
+        "cache": {
+          "read": 500,
+          "write": 200
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "part_text1",
+        "sessionID": "ses_xyz789",
+        "messageID": "msg_abc123",
+        "type": "text",
+        "text": "I'll help you with that task."
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_def456",
+      "sessionID": "ses_xyz789",
+      "role": "assistant",
+      "time": {
+        "created": 1704067300000,
+        "completed": 1704067345000
+      },
+      "parentID": "msg_user789",
+      "modelID": "o1",
+      "providerID": "openai",
+      "mode": "build",
+      "path": {
+        "cwd": "/Users/test/project",
+        "root": "/Users/test/project"
+      },
+      "summary": false,
+      "cost": 0.0156,
+      "tokens": {
+        "input": 2000,
+        "output": 600,
+        "reasoning": 3500,
+        "cache": {
+          "read": 0,
+          "write": 0
+        }
+      },
+      "finish": "stop"
+    },
+    "parts": [
+      {
+        "id": "part_reasoning1",
+        "sessionID": "ses_xyz789",
+        "messageID": "msg_def456",
+        "type": "reasoning",
+        "text": "Let me think through this problem...",
+        "time": {
+          "start": 1704067300000,
+          "end": 1704067330000
+        }
+      },
+      {
+        "id": "part_text2",
+        "sessionID": "ses_xyz789",
+        "messageID": "msg_def456",
+        "type": "text",
+        "text": "Based on my analysis, here's the solution..."
+      }
+    ]
+  },
+  {
+    "info": {
+      "id": "msg_user456",
+      "sessionID": "ses_xyz789",
+      "role": "user",
+      "time": {
+        "created": 1704067100000
+      },
+      "agent": "build",
+      "model": {
+        "providerID": "anthropic",
+        "modelID": "claude-sonnet-4"
+      }
+    },
+    "parts": [
+      {
+        "id": "part_usertext1",
+        "sessionID": "ses_xyz789",
+        "messageID": "msg_user456",
+        "type": "text",
+        "text": "Please help me implement a feature."
+      }
+    ]
+  }
+]

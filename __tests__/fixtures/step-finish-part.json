@@ -1,0 +1,18 @@
+{
+  "id": "part_step1",
+  "sessionID": "ses_xyz789",
+  "messageID": "msg_multi123",
+  "type": "step-finish",
+  "reason": "tool_use",
+  "snapshot": "snapshot_abc",
+  "cost": 0.0012,
+  "tokens": {
+    "input": 800,
+    "output": 400,
+    "reasoning": 0,
+    "cache": {
+      "read": 300,
+      "write": 100
+    }
+  }
+}

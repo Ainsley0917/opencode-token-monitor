@@ -1,0 +1,7 @@
+{
+  "sessionID": "ses_abc123",
+  "messageID": "msg_current",
+  "agent": "build",
+  "directory": "/Users/test/project",
+  "worktree": "/Users/test/project"
+}

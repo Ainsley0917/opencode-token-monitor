@@ -1,0 +1,29 @@
+{
+  "id": "msg_abc123",
+  "sessionID": "ses_xyz789",
+  "role": "assistant",
+  "time": {
+    "created": 1704067200000,
+    "completed": 1704067215000
+  },
+  "parentID": "msg_user456",
+  "modelID": "claude-sonnet-4",
+  "providerID": "anthropic",
+  "mode": "build",
+  "path": {
+    "cwd": "/Users/test/project",
+    "root": "/Users/test/project"
+  },
+  "summary": false,
+  "cost": 0.0024,
+  "tokens": {
+    "input": 1500,
+    "output": 800,
+    "reasoning": 0,
+    "cache": {
+      "read": 500,
+      "write": 200
+    }
+  },
+  "finish": "stop"
+}

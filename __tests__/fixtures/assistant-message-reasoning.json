@@ -1,0 +1,29 @@
+{
+  "id": "msg_reasoning123",
+  "sessionID": "ses_xyz789",
+  "role": "assistant",
+  "time": {
+    "created": 1704067300000,
+    "completed": 1704067345000
+  },
+  "parentID": "msg_user789",
+  "modelID": "o1",
+  "providerID": "openai",
+  "mode": "build",
+  "path": {
+    "cwd": "/Users/test/project",
+    "root": "/Users/test/project"
+  },
+  "summary": false,
+  "cost": 0.0156,
+  "tokens": {
+    "input": 2000,
+    "output": 600,
+    "reasoning": 3500,
+    "cache": {
+      "read": 0,
+      "write": 0
+    }
+  },
+  "finish": "stop"
+}

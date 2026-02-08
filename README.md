@@ -25,7 +25,27 @@ OpenCode plugin for monitoring token usage, estimating costs, and tracking ecosy
 
 ## Installation
 
-### Via npm (Recommended)
+### 1. Recommended: Using opencode.json
+
+Add the plugin to your `opencode.json` configuration file. OpenCode will automatically download and load the plugin on startup.
+
+Add `"opencode-token-monitor@latest"` to the `plugin` array:
+
+```json
+{
+  "plugin": [
+    "opencode-token-monitor@latest"
+  ]
+}
+```
+
+The `opencode.json` file can be located at:
+- `~/.config/opencode/opencode.json` (Global configuration)
+- Project root directory (Project-level configuration)
+
+Restart OpenCode after making this change.
+
+### 2. Via npm
 
 ```bash
 npm install -g opencode-token-monitor
@@ -37,7 +57,7 @@ Then copy the plugin to your OpenCode plugins directory:
 cp $(npm root -g)/opencode-token-monitor/dist/plugin.js ~/.opencode/plugins/token-monitor.js
 ```
 
-### From Source
+### 3. From Source
 
 1. Clone the repository:
    ```bash

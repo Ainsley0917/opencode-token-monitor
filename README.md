@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/Ainsley0917/opencode-token-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Ainsley0917/opencode-token-monitor/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/opencode-token-monitor.svg)](https://www.npmjs.com/package/opencode-token-monitor)
+[![npm downloads](https://img.shields.io/npm/dw/opencode-token-monitor.svg)](https://www.npmjs.com/package/opencode-token-monitor)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/Ainsley0917/opencode-token-monitor/blob/main/LICENSE)
 
 OpenCode plugin for monitoring token usage, estimating costs, and tracking ecosystem analytics across AI coding sessions.
 

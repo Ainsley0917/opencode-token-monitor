@@ -43,3 +43,7 @@ token-usage-output.txt
 # Personal pricing config (use pricing.example.json as template)
 pricing.json
 *.corrupt-backup
+
+# AI agent instructions
+AGENTS.md
+**/AGENTS.md

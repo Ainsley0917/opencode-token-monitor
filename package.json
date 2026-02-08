@@ -1,6 +1,6 @@
 {
   "name": "opencode-token-monitor",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "OpenCode plugin for monitoring token usage and ecosystem analytics",
   "author": "Ainsley0917",
   "license": "MIT",

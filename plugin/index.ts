@@ -30,7 +30,8 @@ import { renderBarChart } from "../lib/ascii-charts";
 import { listSessionTree, aggregateSessionTree, type SessionNode } from "../lib/session-tree";
 import { shouldShowToast, updateState, resetState } from "../lib/notifications";
 import type { AssistantMessage, UserMessage, PriceConfig } from "../lib/types";
-import { writeFileSync } from "fs";
+import { writeFileSync, mkdirSync } from "fs";
+import { dirname } from "path";
 
 const inFlightSessions = new Set<string>();
 
@@ -288,6 +289,7 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
             const content = exportData(records, format);
 
             if (args.file_path) {
+              mkdirSync(dirname(args.file_path), { recursive: true });
               writeFileSync(args.file_path, content, "utf-8");
               return `Successfully exported ${records.length} record(s) to ${args.file_path}`;
             }

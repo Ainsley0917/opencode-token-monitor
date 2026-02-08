@@ -103,6 +103,9 @@ Query historical token usage over a date range.
 - `from` (string, optional): Start date (ISO format, e.g., "2026-01-01").
 - `to` (string, optional): End date (ISO format, e.g., "2026-02-07").
 - `scope` (string, optional): Filter history to "project" or "all" (default).
+- `recalculate` (boolean, optional): Recalculate historical costs using current pricing (default: false).
+
+Note: If you pass `from`/`to` as `YYYY-MM-DD`, the `to` date is treated as inclusive (end-of-day).
 
 ### `token_export`
 
@@ -115,6 +118,7 @@ Export token data for external use.
 - `from`/`to` (string, optional): For range scope.
 - `history_scope` (string, optional): Filter range data to "project" or "all" (default).
 - `file_path` (string, optional): Save to a specific file.
+- `recalculate` (boolean, optional): Range scope only. Recalculate historical costs using current pricing (default: false).
 
 ## Project-Aware Analytics
 

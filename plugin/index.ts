@@ -40,6 +40,8 @@ import { dirname } from "path";
 
 const inFlightSessions = new Set<string>();
 
+const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
 export function getInFlightCount(): number {
   return inFlightSessions.size;
 }
@@ -119,6 +121,25 @@ function maybeRecalculateHistoryCosts(
   }));
 }
 
+function parseDateArg(value: string | undefined, kind: "from" | "to"): Date | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return date;
+  }
+
+  // Treat date-only strings (YYYY-MM-DD) as whole-day ranges.
+  // Date-only parsing is UTC; keep that consistent with ISO date display.
+  if (DATE_ONLY_RE.test(value) && kind === "to") {
+    date.setUTCHours(23, 59, 59, 999);
+  }
+
+  return date;
+}
+
 export default async function (input: PluginInput): Promise<ReturnType<Plugin>> {
   return {
     tool: {
@@ -138,8 +159,8 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
             const now = new Date();
             const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             
-            const fromDate = args.from ? new Date(args.from) : thirtyDaysAgo;
-            const toDate = args.to ? new Date(args.to) : now;
+            const fromDate = parseDateArg(args.from, "from") ?? thirtyDaysAgo;
+            const toDate = parseDateArg(args.to, "to") ?? now;
 
             if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
               return "Error: Invalid date format. Please use ISO format (e.g., 2026-01-01)";
@@ -298,8 +319,8 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
               const now = new Date();
               const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
               
-              const fromDate = args.from ? new Date(args.from) : thirtyDaysAgo;
-              const toDate = args.to ? new Date(args.to) : now;
+              const fromDate = parseDateArg(args.from, "from") ?? thirtyDaysAgo;
+              const toDate = parseDateArg(args.to, "to") ?? now;
 
               if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
                 return "Error: Invalid date format. Please use ISO format (e.g., 2026-01-01)";

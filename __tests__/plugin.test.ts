@@ -836,6 +836,164 @@ describe("Token Stats Plugin", () => {
       }
     }
   });
+
+  test("token_history treats date-only to as inclusive end-of-day", async () => {
+    const historyDir = join(process.cwd(), "token-history");
+    const shardPath = join(historyDir, "2099-03.json");
+    const hadHistoryDir = existsSync(historyDir);
+    const timestamp = Date.parse("2099-03-31T12:00:00.000Z");
+
+    const testRecord = {
+      sessionID: "date-only-to-session",
+      projectID: "test-project",
+      timestamp,
+      totals: {
+        input: 10,
+        output: 20,
+        total: 30,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      byModel: {
+        "google/antigravity-gemini-3-flash": {
+          input: 10,
+          output: 20,
+          total: 30,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+      },
+      cost: 0,
+    };
+
+    if (!existsSync(historyDir)) {
+      mkdirSync(historyDir, { recursive: true });
+    }
+    writeFileSync(shardPath, JSON.stringify([testRecord], null, 2), "utf-8");
+
+    try {
+      const mockClient = {
+        session: {
+          messages: async () => ({ data: [], error: undefined }),
+        },
+      } as unknown as OpencodeClient;
+      const mockInput: PluginInput = {
+        client: mockClient,
+        project: { id: "test-project", worktree: "/test", time: { created: Date.now() } },
+        directory: "/test",
+        worktree: "/test",
+        serverUrl: new URL("http://localhost"),
+        $: {} as any,
+      };
+
+      const hooks = await plugin(mockInput);
+      const context = {
+        sessionID: "test-session",
+        messageID: "test-message",
+        agent: "test-agent",
+        directory: "/test",
+        worktree: "/test",
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+      };
+
+      const result = await hooks.tool!.token_history!.execute(
+        { from: "2099-03-31", to: "2099-03-31" },
+        context
+      );
+
+      expect(result).not.toContain("No session records found");
+      expect(result).toContain("date-only-to...");
+    } finally {
+      if (existsSync(shardPath)) {
+        rmSync(shardPath);
+      }
+      if (!hadHistoryDir && existsSync(historyDir)) {
+        rmSync(historyDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test("token_export range treats date-only to as inclusive end-of-day", async () => {
+    const historyDir = join(process.cwd(), "token-history");
+    const shardPath = join(historyDir, "2099-04.json");
+    const hadHistoryDir = existsSync(historyDir);
+    const timestamp = Date.parse("2099-04-30T12:00:00.000Z");
+
+    const testRecord = {
+      sessionID: "date-only-to-export",
+      projectID: "test-project",
+      timestamp,
+      totals: {
+        input: 1,
+        output: 2,
+        total: 3,
+        reasoning: 0,
+        cache: { read: 0, write: 0 },
+      },
+      byModel: {
+        "google/antigravity-gemini-3-flash": {
+          input: 1,
+          output: 2,
+          total: 3,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+      },
+      cost: 0,
+    };
+
+    if (!existsSync(historyDir)) {
+      mkdirSync(historyDir, { recursive: true });
+    }
+    writeFileSync(shardPath, JSON.stringify([testRecord], null, 2), "utf-8");
+
+    try {
+      const mockClient = {
+        session: {
+          messages: async () => ({ data: [], error: undefined }),
+        },
+      } as unknown as OpencodeClient;
+      const mockInput: PluginInput = {
+        client: mockClient,
+        project: { id: "test-project", worktree: "/test", time: { created: Date.now() } },
+        directory: "/test",
+        worktree: "/test",
+        serverUrl: new URL("http://localhost"),
+        $: {} as any,
+      };
+
+      const hooks = await plugin(mockInput);
+      const context = {
+        sessionID: "test-session",
+        messageID: "test-message",
+        agent: "test-agent",
+        directory: "/test",
+        worktree: "/test",
+        abort: new AbortController().signal,
+        metadata: () => {},
+        ask: async () => {},
+      };
+
+      const result = await hooks.tool!.token_export!.execute(
+        { format: "json", scope: "range", from: "2099-04-30", to: "2099-04-30" },
+        context
+      );
+
+      const exported = JSON.parse(result as string);
+      expect(exported).toHaveLength(1);
+      expect(exported[0].sessionID).toBe("date-only-to-export");
+    } finally {
+      if (existsSync(shardPath)) {
+        rmSync(shardPath);
+      }
+      if (!hadHistoryDir && existsSync(historyDir)) {
+        rmSync(historyDir, { recursive: true, force: true });
+      }
+    }
+  });
+
   test("event hook handles session.idle and shows toast", async () => {
     let toastShown = false;
     let toastMessage = "";

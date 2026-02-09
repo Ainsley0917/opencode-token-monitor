@@ -19,14 +19,15 @@ import {
   renderHeader,
   renderModelTable,
   renderToolCommandTable,
+  renderToolUsageChart,
   renderTotals,
   renderWarnings,
 } from "../lib/renderer";
 import { loadAntigravityQuota } from "../lib/quota";
 import { loadBudgetConfig, getBudgetStatus, formatBudgetSection } from "../lib/budget";
 import { generateOptimizationSuggestions, formatOptimizationSection } from "../lib/optimization";
-import { analyzeTrends } from "../lib/trends";
-import { renderBarChart } from "../lib/ascii-charts";
+import { analyzeTrends, bucketCacheHitRateByDay } from "../lib/trends";
+import { renderBarChart, renderSparkline } from "../lib/ascii-charts";
 import { listSessionTree, aggregateSessionTree, type SessionNode } from "../lib/session-tree";
 import { shouldShowToast, updateState, resetState } from "../lib/notifications";
 import type {
@@ -508,7 +509,11 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
             output += renderHeader(sessionID, models, isAntigravity, args.compact === true);
             output += renderTotals(totalStats);
             output += renderEstimatedCost(costResult.totalCost);
-            output += renderModelTable(statsByModel, costResult.byModel);
+            output += renderModelTable(
+              statsByModel,
+              costResult.byModel,
+              isAntigravity ? { maxTableRows: 15 } : undefined
+            );
             output += renderWarnings(costResult.warnings);
 
             // Parse agent args with defaults
@@ -583,6 +588,7 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
 
               const toolAttribution = aggregateToolAttribution(allParts);
               if (Object.keys(toolAttribution.byTool).length > 0) {
+                output += renderToolUsageChart(toolAttribution);
                 output += renderToolCommandTable(toolAttribution, costResult.totalCost);
               }
             }
@@ -648,6 +654,7 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
                 
                 if (records.length > 0) {
                   const trends = analyzeTrends(records);
+                  const cacheBuckets = bucketCacheHitRateByDay(records);
                   if (trends.buckets.length > 0) {
                     let trendSection = `\n## Trend Analysis (${trendDays} days)\n\n`;
                     
@@ -656,6 +663,85 @@ export default async function (input: PluginInput): Promise<ReturnType<Plugin>> 
                     const chart = renderBarChart(costValues, dateLabels);
                     if (chart) {
                       trendSection += `### Daily Cost Trend\n\`\`\`\n${chart}\n\`\`\`\n\n`;
+                    }
+
+                    if (cacheBuckets.length > 0) {
+                      const findLastFinite = (
+                        values: Array<number | null | undefined>
+                      ): number | null => {
+                        for (let i = values.length - 1; i >= 0; i--) {
+                          const v = values[i];
+                          if (typeof v === "number" && Number.isFinite(v)) {
+                            return v;
+                          }
+                        }
+                        return null;
+                      };
+
+                      const overallSeries = cacheBuckets.map((b) => b.hitRate);
+                      const overallSpark = renderSparkline(overallSeries);
+
+                      if (overallSpark) {
+                        const totals = cacheBuckets.reduce(
+                          (acc, b) => {
+                            acc.input += b.input;
+                            acc.cacheRead += b.cacheRead;
+                            return acc;
+                          },
+                          { input: 0, cacheRead: 0 }
+                        );
+                        const overallAvg =
+                          totals.input + totals.cacheRead > 0
+                            ? (totals.cacheRead / (totals.input + totals.cacheRead)) * 100
+                            : null;
+
+                        const providerTotals = new Map<string, { input: number; cacheRead: number }>();
+                        for (const bucket of cacheBuckets) {
+                          for (const [provider, stats] of Object.entries(bucket.byProvider)) {
+                            const existing = providerTotals.get(provider) ?? { input: 0, cacheRead: 0 };
+                            existing.input += stats.input;
+                            existing.cacheRead += stats.cacheRead;
+                            providerTotals.set(provider, existing);
+                          }
+                        }
+
+                        const topProviders = Array.from(providerTotals.entries())
+                          .sort((a, b) => {
+                            const aDenom = a[1].input + a[1].cacheRead;
+                            const bDenom = b[1].input + b[1].cacheRead;
+                            if (bDenom !== aDenom) {
+                              return bDenom - aDenom;
+                            }
+                            return a[0].localeCompare(b[0]);
+                          })
+                          .slice(0, 6)
+                          .map(([provider]) => provider);
+
+                        const labelWidth = Math.max(
+                          "Overall".length,
+                          ...topProviders.map((p) => p.length)
+                        );
+                        const sparkWidth = overallSpark.length;
+
+                        const overallLast = findLastFinite(overallSeries);
+                        const overallLastText = overallLast !== null ? `${overallLast.toFixed(1)}%` : "N/A";
+                        const overallAvgText = overallAvg !== null ? `${overallAvg.toFixed(1)}%` : "N/A";
+
+                        trendSection += `### Cache Hit Rate Trend\n\`\`\`\n`;
+                        trendSection += `${"Overall".padEnd(labelWidth)} ${overallSpark.padEnd(sparkWidth, " ")} ${overallLastText} (last)\n`;
+                        trendSection += `${"".padEnd(labelWidth)} ${"".padEnd(sparkWidth, " ")} ${overallAvgText} (avg)\n`;
+
+                        for (const provider of topProviders) {
+                          const series = cacheBuckets.map(
+                            (b) => b.byProvider[provider]?.hitRate ?? null
+                          );
+                          const spark = renderSparkline(series).padEnd(sparkWidth, " ");
+                          const last = findLastFinite(series);
+                          const lastText = last !== null ? `${last.toFixed(1)}%` : "N/A";
+                          trendSection += `${provider.padEnd(labelWidth)} ${spark} ${lastText}\n`;
+                        }
+                        trendSection += `\`\`\`\n\n`;
+                      }
                     }
 
                     trendSection += `| Date | Cost | Tokens | Sessions |\n`;

@@ -17,7 +17,13 @@ export function renderHeader(
 ): string {
   let output = "# Token Usage Statistics\n\n";
   output += `**Session:** ${sessionID}\n`;
-  output += `**Models:** ${models.join(", ")}\n\n`;
+
+  const MAX_MODELS_IN_HEADER = 5;
+  const modelLabel =
+    models.length <= MAX_MODELS_IN_HEADER
+      ? models.join(", ")
+      : `${models.slice(0, MAX_MODELS_IN_HEADER).join(", ")} ... (+${models.length - MAX_MODELS_IN_HEADER} more)`;
+  output += `**Models:** ${modelLabel}\n\n`;
 
   if (isAntigravity && !isCompact) {
     output += "_ℹ️ Compact mode auto-applied for Antigravity provider._\n\n";
@@ -27,12 +33,17 @@ export function renderHeader(
 }
 
 export function renderTotals(totalStats: TokenStats): string {
+  const cacheTotal = totalStats.cache.read + totalStats.input;
+  const cacheHitRate =
+    cacheTotal > 0 ? `${((totalStats.cache.read / cacheTotal) * 100).toFixed(1)}%` : "N/A";
+
   let output = "## Totals\n";
   output += `- Input: ${totalStats.input.toLocaleString()} tokens\n`;
   output += `- Output: ${totalStats.output.toLocaleString()} tokens\n`;
   output += `- Total: ${totalStats.total.toLocaleString()} tokens\n`;
   output += `- Reasoning: ${totalStats.reasoning.toLocaleString()} tokens\n`;
-  output += `- Cache (read/write): ${totalStats.cache.read.toLocaleString()}/${totalStats.cache.write.toLocaleString()} tokens\n\n`;
+  output += `- Cache (read/write): ${totalStats.cache.read.toLocaleString()}/${totalStats.cache.write.toLocaleString()} tokens\n`;
+  output += `- Cache hit rate: ${cacheHitRate}\n\n`;
   return output;
 }
 
@@ -42,7 +53,8 @@ export function renderEstimatedCost(totalCost: number): string {
 
 export function renderModelTable(
   statsByModel: TokenStatsByModel,
-  costByModel: Record<string, number>
+  costByModel: Record<string, number>,
+  tableConfig: Parameters<typeof limitTableRows>[1] = {}
 ): string {
   let output = "## Per-Model Breakdown\\n";
   output += "| Model | Input | Output | Total | Cost |\\n";
@@ -53,7 +65,7 @@ export function renderModelTable(
     rows: limitedModels,
     truncated: modelsTruncated,
     totalCount: modelsTotal,
-  } = limitTableRows(modelEntries);
+  } = limitTableRows(modelEntries, tableConfig);
 
   for (const [model, stats] of limitedModels) {
     const cost = costByModel[model] || 0;
@@ -156,6 +168,44 @@ export function renderToolCommandTable(
 
   if (truncated) {
     output += `\n_...and ${totalCount - limitedRows.length} more rows. Use \`token_export\` for full data._\n`;
+  }
+
+  return output;
+}
+
+export function renderToolUsageChart(attribution: ToolAttributionResult): string {
+  const rows = Object.values(attribution.byTool);
+  if (rows.length === 0) {
+    return "";
+  }
+
+  const sortedRows = [...rows].sort((a, b) => {
+    if (b.callCount !== a.callCount) {
+      return b.callCount - a.callCount;
+    }
+    return a.tool.localeCompare(b.tool);
+  });
+
+  const { rows: limitedRows, truncated, totalCount } = limitTableRows(sortedRows, {
+    maxTableRows: 20,
+  });
+
+  const maxCalls = Math.max(...limitedRows.map((row) => row.callCount));
+  const totalCalls = rows.reduce((sum, row) => sum + row.callCount, 0);
+  const nameWidth = Math.max(...limitedRows.map((row) => row.tool.length));
+
+  let output = "\n## Tool Usage\n";
+  for (const row of limitedRows) {
+    const barLength =
+      maxCalls > 0 && row.callCount > 0 ? Math.max(1, Math.round((row.callCount / maxCalls) * 20)) : 0;
+    const bar = "█".repeat(barLength).padEnd(20, " ");
+    const percentage = totalCalls > 0 ? `${((row.callCount / totalCalls) * 100).toFixed(1)}%` : "0.0%";
+
+    output += `${row.tool.padEnd(nameWidth)} ${bar} ${row.callCount.toLocaleString()} (${percentage.padStart(5, " ")})\n`;
+  }
+
+  if (truncated) {
+    output += `\n_...and ${totalCount - limitedRows.length} more tools._\n`;
   }
 
   return output;

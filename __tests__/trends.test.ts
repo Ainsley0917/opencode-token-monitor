@@ -1,10 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import {
   bucketByDay,
+  bucketCacheHitRateByDay,
   computeWeekOverWeek,
   detectSpikes,
   analyzeTrends,
   type DailyBucket,
+  type CacheHitRateBucket,
 } from "../lib/trends";
 import type { SessionRecord } from "../lib/types";
 
@@ -143,6 +145,75 @@ describe("bucketByDay", () => {
     expect(buckets.length).toBe(2);
     expect(buckets[0]?.date).toBe("2026-02-01");
     expect(buckets[1]?.date).toBe("2026-02-03");
+  });
+});
+
+describe("bucketCacheHitRateByDay", () => {
+  test("should bucket cache hit rate by day with per-provider breakdown", () => {
+    const records: SessionRecord[] = [
+      {
+        sessionID: "ses_1",
+        timestamp: new Date("2026-02-01T10:00:00Z").getTime(),
+        totals: {
+          input: 100,
+          output: 0,
+          total: 100,
+          reasoning: 0,
+          cache: { read: 50, write: 0 },
+        },
+        byModel: {
+          "openai/gpt-4o": {
+            input: 100,
+            output: 0,
+            total: 100,
+            reasoning: 0,
+            cache: { read: 50, write: 0 },
+          },
+        },
+        cost: 0,
+      },
+      {
+        sessionID: "ses_2",
+        timestamp: new Date("2026-02-01T15:00:00Z").getTime(),
+        totals: {
+          input: 50,
+          output: 0,
+          total: 50,
+          reasoning: 0,
+          cache: { read: 50, write: 0 },
+        },
+        byModel: {
+          "anthropic/claude-sonnet-4": {
+            input: 50,
+            output: 0,
+            total: 50,
+            reasoning: 0,
+            cache: { read: 50, write: 0 },
+          },
+        },
+        cost: 0,
+      },
+    ];
+
+    const buckets = bucketCacheHitRateByDay(records);
+    expect(buckets).toHaveLength(1);
+
+    const bucket = buckets[0] as CacheHitRateBucket;
+    expect(bucket.date).toBe("2026-02-01");
+    expect(bucket.input).toBe(150);
+    expect(bucket.cacheRead).toBe(100);
+    expect(bucket.hitRate).toBeCloseTo(40.0, 5);
+
+    expect(bucket.byProvider.openai).toBeDefined();
+    expect(bucket.byProvider.openai?.hitRate).toBeCloseTo(33.333333, 5);
+
+    expect(bucket.byProvider.anthropic).toBeDefined();
+    expect(bucket.byProvider.anthropic?.hitRate).toBeCloseTo(50.0, 5);
+  });
+
+  test("should handle empty input", () => {
+    const buckets = bucketCacheHitRateByDay([]);
+    expect(buckets).toEqual([]);
   });
 });
 

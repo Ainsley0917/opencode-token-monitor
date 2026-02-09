@@ -4946,7 +4946,9 @@ describe("Token Stats Plugin", () => {
     test("Tool × Command appears in non-compact output", async () => {
       const result = await runTokenStats([assistantMessage(completedToolParts("Run ls"))]);
 
+      expect(result).toContain("## Tool Usage");
       expect(result).toContain("## Tool × Command");
+      expect(result.indexOf("## Tool Usage")).toBeLessThan(result.indexOf("## Tool × Command"));
       expect(result).toContain("| Tool | Summary | Calls | Input | Output | Total | Cost | %Cost |");
       expect(result).toContain("| bash | Run ls | 1 | 10 | 5 | 15 |");
     });
@@ -5021,6 +5023,7 @@ describe("Token Stats Plugin", () => {
         }
       );
 
+      expect(result).toContain("## Tool Usage");
       expect(result).toContain("## Tool × Command");
       expect(result).toContain("| bash | Run child ls | 1 | 10 | 5 | 15 |");
     });
@@ -5030,6 +5033,7 @@ describe("Token Stats Plugin", () => {
         compact: true,
       });
 
+      expect(result).not.toContain("## Tool Usage");
       expect(result).not.toContain("## Tool × Command");
     });
 
@@ -5043,6 +5047,7 @@ describe("Token Stats Plugin", () => {
       ]);
 
       expect(result).toContain("Compact mode auto-applied");
+      expect(result).not.toContain("## Tool Usage");
       expect(result).not.toContain("## Tool × Command");
     });
 

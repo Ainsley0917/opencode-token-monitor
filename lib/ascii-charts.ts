@@ -42,7 +42,7 @@ export function renderBarChart(
 }
 
 export function renderSparkline(
-  values: number[],
+  values: Array<number | null | undefined>,
   options: ChartOptions = {}
 ): string {
   if (values.length === 0) {
@@ -53,26 +53,36 @@ export function renderSparkline(
   const effectiveValues = values.slice(-maxPoints);
 
   if (effectiveValues.length === 1) {
-    return "▄";
+    const v = effectiveValues[0];
+    return typeof v === "number" && Number.isFinite(v) ? "▄" : ".";
   }
 
-  const min = Math.min(...effectiveValues);
-  const max = Math.max(...effectiveValues);
+  const finiteValues = effectiveValues.filter(
+    (v): v is number => typeof v === "number" && Number.isFinite(v)
+  );
+  if (finiteValues.length === 0) {
+    return "";
+  }
+
+  const min = Math.min(...finiteValues);
+  const max = Math.max(...finiteValues);
 
   if (min === max) {
-    return "▄".repeat(effectiveValues.length);
+    return effectiveValues
+      .map((v) => (typeof v === "number" && Number.isFinite(v) ? "▄" : "."))
+      .join("");
   }
 
   const chars = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
   const range = max - min;
 
   return effectiveValues
-    .map(value => {
+    .map((value) => {
+      if (typeof value !== "number" || !Number.isFinite(value)) {
+        return ".";
+      }
       const normalized = (value - min) / range;
-      const index = Math.min(
-        chars.length - 1,
-        Math.floor(normalized * chars.length)
-      );
+      const index = Math.min(chars.length - 1, Math.floor(normalized * chars.length));
       return chars[index];
     })
     .join("");

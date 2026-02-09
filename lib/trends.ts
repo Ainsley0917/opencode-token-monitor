@@ -13,6 +13,40 @@ export type TrendStats = {
   spikes: string[]; // dates of spike days
 };
 
+export type CacheHitRateBucket = {
+  date: string; // YYYY-MM-DD
+  input: number;
+  cacheRead: number;
+  hitRate: number | null; // percentage (0-100)
+  byProvider: Record<
+    string,
+    {
+      input: number;
+      cacheRead: number;
+      hitRate: number | null; // percentage (0-100)
+    }
+  >;
+};
+
+function computeCacheHitRatePercent(
+  input: number,
+  cacheRead: number
+): number | null {
+  const denom = input + cacheRead;
+  if (denom <= 0) {
+    return null;
+  }
+  return (cacheRead / denom) * 100;
+}
+
+function providerFromModelKey(modelKey: string): string {
+  const idx = modelKey.indexOf("/");
+  if (idx <= 0) {
+    return "unknown";
+  }
+  return modelKey.slice(0, idx);
+}
+
 export function bucketByDay(records: SessionRecord[]): DailyBucket[] {
   if (records.length === 0) {
     return [];
@@ -43,6 +77,71 @@ export function bucketByDay(records: SessionRecord[]): DailyBucket[] {
   buckets.sort((a, b) => a.date.localeCompare(b.date));
 
   return buckets;
+}
+
+export function bucketCacheHitRateByDay(records: SessionRecord[]): CacheHitRateBucket[] {
+  if (records.length === 0) {
+    return [];
+  }
+
+  const bucketMap = new Map<
+    string,
+    {
+      date: string;
+      input: number;
+      cacheRead: number;
+      byProvider: Record<string, { input: number; cacheRead: number }>;
+    }
+  >();
+
+  for (const record of records) {
+    const date = new Date(record.timestamp);
+    const dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+    let bucket = bucketMap.get(dateKey);
+    if (!bucket) {
+      bucket = {
+        date: dateKey,
+        input: 0,
+        cacheRead: 0,
+        byProvider: {},
+      };
+      bucketMap.set(dateKey, bucket);
+    }
+
+    bucket.input += record.totals.input;
+    bucket.cacheRead += record.totals.cache.read;
+
+    for (const [modelKey, stats] of Object.entries(record.byModel)) {
+      const provider = providerFromModelKey(modelKey);
+      const providerBucket = bucket.byProvider[provider] ?? { input: 0, cacheRead: 0 };
+      providerBucket.input += stats.input;
+      providerBucket.cacheRead += stats.cache.read;
+      bucket.byProvider[provider] = providerBucket;
+    }
+  }
+
+  const buckets = Array.from(bucketMap.values());
+  buckets.sort((a, b) => a.date.localeCompare(b.date));
+
+  return buckets.map((bucket) => {
+    const byProvider: CacheHitRateBucket["byProvider"] = {};
+    for (const [provider, stats] of Object.entries(bucket.byProvider)) {
+      byProvider[provider] = {
+        input: stats.input,
+        cacheRead: stats.cacheRead,
+        hitRate: computeCacheHitRatePercent(stats.input, stats.cacheRead),
+      };
+    }
+
+    return {
+      date: bucket.date,
+      input: bucket.input,
+      cacheRead: bucket.cacheRead,
+      hitRate: computeCacheHitRatePercent(bucket.input, bucket.cacheRead),
+      byProvider,
+    };
+  });
 }
 
 export function computeWeekOverWeek(buckets: DailyBucket[]): number {

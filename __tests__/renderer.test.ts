@@ -6,6 +6,7 @@ import {
   renderHeader,
   renderModelTable,
   renderToolCommandTable,
+  renderToolUsageChart,
   renderTotals,
   renderWarnings,
 } from "../lib/renderer";
@@ -55,6 +56,19 @@ describe("renderer", () => {
     expect(result).toContain("- Total: 8,888,888 tokens");
     expect(result).toContain("- Reasoning: 2,222,222 tokens");
     expect(result).toContain("- Cache (read/write): 1,000,000/2,000,000 tokens");
+    expect(result).toContain("- Cache hit rate: 44.8%");
+  });
+
+  test("renderTotals: shows cache hit rate N/A when denominator is zero", () => {
+    const result = renderTotals({
+      input: 0,
+      output: 10,
+      total: 10,
+      reasoning: 0,
+      cache: { read: 0, write: 0 },
+    });
+
+    expect(result).toContain("- Cache hit rate: N/A");
   });
 
   test("renderEstimatedCost: formats currency", () => {
@@ -443,6 +457,82 @@ describe("renderer", () => {
     const result = renderToolCommandTable(attribution, 0);
 
     expect(result).toContain("| bash | No cost | 1 | 10 | 10 | 20 | $0.0000 | - |");
+  });
+
+  test("renderToolUsageChart: empty byTool returns empty string", () => {
+    const attribution: ToolAttributionResult = { byTool: {} };
+
+    expect(renderToolUsageChart(attribution)).toBe("");
+  });
+
+  test("renderToolUsageChart: renders sorted bars with percentages", () => {
+    const attribution: ToolAttributionResult = {
+      byTool: {
+        bash: {
+          tool: "bash",
+          title: "Run bash",
+          callCount: 2,
+          tokens: {
+            input: 10,
+            output: 10,
+            total: 20,
+            reasoning: 0,
+            cache: { read: 0, write: 0 },
+          },
+          cost: 0,
+        },
+        read: {
+          tool: "read",
+          title: "Read files",
+          callCount: 8,
+          tokens: {
+            input: 10,
+            output: 10,
+            total: 20,
+            reasoning: 0,
+            cache: { read: 0, write: 0 },
+          },
+          cost: 0,
+        },
+      },
+    };
+
+    const result = renderToolUsageChart(attribution);
+    const readIdx = result.indexOf("read");
+    const bashIdx = result.indexOf("bash");
+
+    expect(result).toContain("## Tool Usage");
+    expect(readIdx).toBeGreaterThan(-1);
+    expect(bashIdx).toBeGreaterThan(-1);
+    expect(readIdx).toBeLessThan(bashIdx);
+    expect(result).toContain("8 (80.0%)");
+    expect(result).toContain("2 (20.0%)");
+    expect(result).toContain("████████████████████");
+  });
+
+  test("renderToolUsageChart: truncates to top 20 tools", () => {
+    const byTool: ToolAttributionResult["byTool"] = {};
+    for (let i = 0; i < 25; i++) {
+      byTool[`tool-${i}`] = {
+        tool: `tool-${i}`,
+        title: `Tool ${i}`,
+        callCount: 25 - i,
+        tokens: {
+          input: 0,
+          output: 0,
+          total: 0,
+          reasoning: 0,
+          cache: { read: 0, write: 0 },
+        },
+        cost: 0,
+      };
+    }
+
+    const result = renderToolUsageChart({ byTool });
+    const lines = result.split("\n").filter((line) => line.startsWith("tool-"));
+
+    expect(lines).toHaveLength(20);
+    expect(result).toContain("_...and 5 more tools._");
   });
 
   test("renderWarnings: empty array returns empty string", () => {
